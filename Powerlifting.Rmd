@@ -1,0 +1,194 @@
+---
+title: "Powerlifting myths"
+author: "Anna Duan"
+date: "8/19/2021"
+output: html_document
+---
+
+```{r Setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+options(scipen=100000)
+library(knitr)
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(kableExtra)
+library(dplyr)
+library(viridis)
+library(mapview)
+library(lubridate)
+library(grid)
+library(gridExtra)
+
+
+root.dir = "https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/DATA/"
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
+
+
+plotTheme <- function(base_size = 12, title_size = 16) {
+  theme(
+    text = element_text( color = "black"),
+    plot.title = element_text(size = title_size, colour = "black"), 
+    plot.subtitle = element_text(face="italic"),
+    plot.caption = element_text(hjust=0),
+    axis.ticks = element_blank(),
+    panel.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_rect(fill = "grey80", color = "white"),
+    strip.text = element_text(size=12),
+    axis.title = element_text(size=12),
+    axis.text = element_text(size=10),
+    plot.background = element_blank(),
+    legend.background = element_blank(),
+    legend.title = element_text(colour = "black", face = "italic"),
+    legend.text = element_text(colour = "black", face = "italic"),
+    strip.text.x = element_text(size = 14)
+  )
+}
+
+
+
+powerlifting <- read_csv("/Users/annaduan/Documents/dataviz2021/Powerlifting/openpowerlifting2021.csv") %>%
+  filter(MeetCountry == "USA")
+
+
+PL <- powerlifting %>%
+  drop_na(Wilks, TotalKg, Age, Best3SquatKg, Best3BenchKg, Best3DeadliftKg)
+```
+
+```{r exploratory}
+ggplot(PL, aes(x=Wilks)) +
+  geom_histogram() +
+  labs(title = "Wilks") +
+  plotTheme()
+
+ggplot(PL, aes(x=BodyweightKg)) +
+  geom_histogram() +
+  labs(title = "Bodyweight") +
+  plotTheme()
+
+ggplot(PL, aes(x=Age)) +
+  geom_histogram() +
+  labs(title = "Age") +
+  plotTheme()
+
+ggplot(PL, aes(x=Best3DeadliftKg)) +
+  geom_histogram() +
+  labs(title = "Deadlift") +
+  plotTheme()
+
+ggplot(PL, aes(x=Best3SquatKg)) +
+  geom_histogram() +
+  labs(title = "Squat") +
+  plotTheme()
+
+ggplot(PL, aes(x=Best3BenchKg)) +
+  stat_density() +
+  labs(title = "Bench") +
+  plotTheme()
+
+
+PL %>%
+  dplyr::select(Best3BenchKg, Best3DeadliftKg, Best3SquatKg) %>%
+  gather(Variable, Value) %>%
+  ggplot() +
+  stat_density(aes(x=Value, colour = Variable),  alpha = 0.4) +
+  stat_density(aes(x=Value, fill = Variable),  alpha = 0.4) +
+  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
+  plotTheme()
+  
+  
+  ggplot(PL, aes(x=Best3BenchKg)) +
+  stat_density(aes(x=Best3BenchKg, colour = Best3BenchKg),  alpha = 0.4) +
+  stat_density(aes(x=Best3DeadliftKg, colour = Best3DeadliftKg),  alpha = 0.4) +
+  stat_density(aes(x=Best3SquatKg, colour = Best3SquatKg), alpha = 0.4) +
+  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
+  plotTheme()
+
+```
+
+```{r feat eng}
+ PL <-
+  PL %>%
+  mutate(Weight.cat = case_when(
+                  BodyweightKg >= 0 & BodyweightKg < 50  ~ "50kg",
+                  BodyweightKg >= 50 & BodyweightKg < 55  ~ "55kg",
+                  BodyweightKg >= 55 & BodyweightKg < 60  ~ "60kg",
+                  BodyweightKg >= 60 & BodyweightKg < 65  ~ "65kg",
+                  BodyweightKg >= 65 & BodyweightKg < 70  ~ "70kg",
+                  BodyweightKg >= 70 & BodyweightKg < 75  ~ "75kg",
+                  BodyweightKg >= 75 & BodyweightKg < 80  ~ "80kg",
+                  BodyweightKg >= 80 & BodyweightKg < 85  ~ "85kg",
+                  BodyweightKg >= 85 & BodyweightKg < 90  ~ "90kg",
+                  BodyweightKg >= 90 & BodyweightKg < 95  ~ "95kg",
+                  BodyweightKg >= 95 & BodyweightKg < 100  ~ "100kg",
+                  BodyweightKg >= 100 & BodyweightKg < 105  ~ "105kg",
+                  BodyweightKg >= 105 & BodyweightKg < 110  ~ "110kg",
+                  BodyweightKg >= 110 & BodyweightKg < 115  ~ "115kg",
+                  BodyweightKg >= 115          ~ "120+ kg")) %>%
+    mutate(Weight.cat = fct_relevel(Weight.cat, 
+           "50kg", "55kg", "60kg", "65kg", "70kg", "75kg", "80kg","85kg","90kg","95kg","100kg","105kg","110kg","115kg"))
+```
+
+```{r wilks}
+Wilks.Summary <- PL %>%
+  filter(AgeClass == "24-34") %>%
+  dplyr::select(Weight.cat, AgeClass, Best3SquatKg, Best3BenchKg, Best3DeadliftKg, TotalKg, Wilks, Sex) %>%
+    group_by(Weight.cat, Sex) %>%
+    summarize(Squat = mean(Best3SquatKg, na.rm = T),
+              Bench = mean(Best3BenchKg, na.rm = T),
+              Deadlift = mean(Best3DeadliftKg, na.rm = T),
+              TotalAvg = mean(TotalKg, na.rm = T),
+              WilksAvg = mean(Wilks, na.rm = T))
+
+kable(Wilks.Summary) %>%
+  kable_styling() %>%
+  footnote(general_title = "\n",
+           general = "Weight, Sex and PL Outcomes")
+
+Wilks.Summary %>%
+  unite(Weight.cat.Sex, Weight.cat, Sex, sep = ": ", remove = T) %>%
+  gather(Variable, Value, -Weight.cat.Sex) %>%
+  mutate(Value = round(Value, 2)) %>%
+  spread(Weight.cat.Sex, Value) %>%
+  kable() %>%
+    kable_styling() %>%
+    footnote(general_title = "\n",
+             general = "Weight, Sex and PL Outcomes 2")
+
+Wilks.Summary %>%
+  gather(Variable, Value, -Weight.cat, -Sex) %>%
+  ggplot(aes(Weight.cat, Value, fill = Sex)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~Variable, scales = "free", ncol=3) +
+    scale_fill_manual(values = c("blue", "pink", "green")) +
+    labs(title = "Weight Lifted Across Weight Classes and Sex") +
+    plotTheme() + theme(legend.position="bottom")
+
+
+```
+
+```{r drugs}
+PED.Summary <- PL %>%
+  dplyr::select(Weight.cat, AgeClass, Best3SquatKg, Best3BenchKg, Best3DeadliftKg, TotalKg, Wilks, Sex, Tested) %>%
+    group_by(Tested, Weight.cat) %>%
+    summarize(Squat = mean(Best3SquatKg, na.rm = T),
+              Bench = mean(Best3BenchKg, na.rm = T),
+              Deadlift = mean(Best3DeadliftKg, na.rm = T),
+              TotalAvg = mean(TotalKg, na.rm = T),
+              WilksAvg = mean(Wilks, na.rm = T))
+
+PED.Summary %>%
+  gather(Variable, Value, -Weight.cat, -Tested) %>%
+  ggplot(aes(Weight.cat, Value, fill = Tested)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~Variable, scales = "free", ncol=3) +
+    scale_fill_manual(values = c("blue", "pink", "green")) +
+    labs(title = "Strength and PED Testing") +
+    plotTheme() + theme(legend.position="bottom")
+```
+
+
+
