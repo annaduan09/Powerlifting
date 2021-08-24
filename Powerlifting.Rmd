@@ -2,12 +2,20 @@
 title: "Powerlifting myths"
 author: "Anna Duan"
 date: "8/19/2021"
-output: html_document
+output: 
+  html_document:
+    keep_md: true
+    toc: true
+    theme: cosmo
+    toc_float: true
+    code_folding: hide
 ---
 
-```{r Setup, include=FALSE}
+Among powerlifters, there are many tropes and debates about our sport.
+```{r SetUp, message=FALSE, warning=FALSE, cache=TRUE, include=FALSE, results='hide'}
+#Reload
 knitr::opts_chunk$set(message = FALSE, warning = FALSE)
-options(scipen=100000)
+options(scipen=1000000000)
 library(knitr)
 library(tidyverse)
 library(tidycensus)
@@ -48,69 +56,14 @@ plotTheme <- function(base_size = 12, title_size = 16) {
   )
 }
 
-
-
+#Read file
 powerlifting <- read_csv("/Users/annaduan/Documents/dataviz2021/Powerlifting/openpowerlifting2021.csv") %>%
   filter(MeetCountry == "USA")
-
-
 PL <- powerlifting %>%
   drop_na(Wilks, TotalKg, Age, Best3SquatKg, Best3BenchKg, Best3DeadliftKg)
-```
 
-```{r exploratory}
-ggplot(PL, aes(x=Wilks)) +
-  geom_histogram() +
-  labs(title = "Wilks") +
-  plotTheme()
-
-ggplot(PL, aes(x=BodyweightKg)) +
-  geom_histogram() +
-  labs(title = "Bodyweight") +
-  plotTheme()
-
-ggplot(PL, aes(x=Age)) +
-  geom_histogram() +
-  labs(title = "Age") +
-  plotTheme()
-
-ggplot(PL, aes(x=Best3DeadliftKg)) +
-  geom_histogram() +
-  labs(title = "Deadlift") +
-  plotTheme()
-
-ggplot(PL, aes(x=Best3SquatKg)) +
-  geom_histogram() +
-  labs(title = "Squat") +
-  plotTheme()
-
-ggplot(PL, aes(x=Best3BenchKg)) +
-  stat_density() +
-  labs(title = "Bench") +
-  plotTheme()
-
-
-PL %>%
-  dplyr::select(Best3BenchKg, Best3DeadliftKg, Best3SquatKg) %>%
-  gather(Variable, Value) %>%
-  ggplot() +
-  stat_density(aes(x=Value, colour = Variable),  alpha = 0.4) +
-  stat_density(aes(x=Value, fill = Variable),  alpha = 0.4) +
-  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
-  plotTheme()
-  
-  
-  ggplot(PL, aes(x=Best3BenchKg)) +
-  stat_density(aes(x=Best3BenchKg, colour = Best3BenchKg),  alpha = 0.4) +
-  stat_density(aes(x=Best3DeadliftKg, colour = Best3DeadliftKg),  alpha = 0.4) +
-  stat_density(aes(x=Best3SquatKg, colour = Best3SquatKg), alpha = 0.4) +
-  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
-  plotTheme()
-
-```
-
-```{r feat eng}
- PL <-
+#  weight categories
+PL <-
   PL %>%
   mutate(Weight.cat = case_when(
                   BodyweightKg >= 0 & BodyweightKg < 50  ~ "50kg",
@@ -130,9 +83,165 @@ PL %>%
                   BodyweightKg >= 115          ~ "120+ kg")) %>%
     mutate(Weight.cat = fct_relevel(Weight.cat, 
            "50kg", "55kg", "60kg", "65kg", "70kg", "75kg", "80kg","85kg","90kg","95kg","100kg","105kg","110kg","115kg"))
+
+#SBD
+SBD <- PL %>%
+  dplyr::select(Best3BenchKg, Best3DeadliftKg, Best3SquatKg)
+
+#early phases
+
+PL_1964 <-  PL %>%
+subset(.,
+     Date >= as.POSIXct('1964-09-05') &
+     Date <= as.POSIXct('1984-09-05')
+     )  %>%
+ #   filter(Sex == "M") %>%
+  mutate(Period = "1964 - 1984")
+  
+SBD_1964 <-
+ PL_1964 %>%
+    select(Best3BenchKg, Best3SquatKg, Best3DeadliftKg) %>%
+  rename(Bench_64 = Best3BenchKg,
+         Squat_64 = Best3SquatKg,
+         Deadlift_64 = Best3DeadliftKg) %>%
+  gather(Variable, Value)
+
+#recent years
+
+PL_2000 <-  PL %>%
+subset(.,
+     Date >= as.POSIXct('2000-09-05') &
+     Date <= as.POSIXct('2020-09-05')
+     )  %>%
+  #  filter(Sex == "M") %>%
+    mutate(Period = "2000 - 2020")
+
+
+SBD_2000 <- 
+  PL_2000 %>%
+    select(Best3BenchKg, Best3SquatKg, Best3DeadliftKg) %>%
+  rename(Bench_00 = Best3BenchKg,
+         Squat_00 = Best3SquatKg,
+         Deadlift_00 = Best3DeadliftKg) %>%
+  gather(Variable, Value)
+
+PL_both <-
+  full_join(PL_1964, PL_2000)
+
+SBD_Compare <- 
+  full_join(SBD_1964, SBD_2000)
 ```
 
-```{r wilks}
+```{r exploring strength distributions, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+
+grid.arrange(  
+  
+  ggplot(PL, aes(x=Wilks)) +
+  geom_histogram() +
+  labs(title = "Wilks") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=BodyweightKg)) +
+  geom_histogram() +
+  labs(title = "Bodyweight") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=Age)) +
+  geom_histogram() +
+  labs(title = "Age") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=Best3DeadliftKg)) +
+  geom_histogram() +
+  labs(title = "Deadlift") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=Best3SquatKg)) +
+  geom_histogram() +
+  labs(title = "Squat") +
+  plotTheme(),
+  
+  ggplot(PL, aes(x=Best3BenchKg)) +
+  geom_histogram() +
+  labs(title = "Bench") +
+  plotTheme(),
+  
+  ncol=3)
+
+
+
+#all records
+SBD %>%
+  gather(Variable, Value) %>%
+  ggplot() +
+  stat_density(aes(x=Value, fill = Variable, alpha = 0.4)) +
+  stat_density(aes(x=Value, fill = Variable, alpha = 0.4)) +
+  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
+  plotTheme()
+```
+ 
+Powerlifting averages have slightly decreased since the early days despite increases in sports science, equipment, and knowledge. What happened?
+```{r exploring strength over time, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+#calculate mean weights for each lift during each period
+means_2000 <- PL_2000 %>%
+  summarize(mean_squat=mean(Best3SquatKg),
+            mean_bench=mean(Best3BenchKg),
+            mean_dead=mean(Best3DeadliftKg))
+
+  
+means_1964 <- PL_1964 %>%
+  summarize(mean_squat=mean(Best3SquatKg),
+            mean_bench=mean(Best3BenchKg),
+            mean_dead=mean(Best3DeadliftKg))
+
+
+
+grid.arrange(
+  #1964-1984
+  SBD_1964 %>%
+  ggplot() +
+  stat_density(aes(x=Value, fill = Variable, alpha = 0.4), colour = "transparent") +
+    xlim(0, 600) +
+     geom_vline(data = means_1964, aes(xintercept = mean_squat), size=1.5, color="blue", size = 1.5) +
+     geom_vline(data = means_1964, aes(xintercept = mean_bench), size=1.5, color="red", size = 1.5) +
+     geom_vline(data = means_1964, aes(xintercept = mean_dead), size=1.5, color="green", size = 1.5) +
+  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 1984", subtitle = "in Kilograms; 1kg = 2.2lbs") +
+  plotTheme(),
+
+#2000-2020
+SBD_2000 %>%
+  ggplot() +
+  stat_density(aes(x=Value, fill = Variable, alpha = 0.4), colour = "transparent") +
+      xlim(0, 600) +
+     geom_vline(data = means_2000, aes(xintercept = mean_squat), size=1.5, color="blue", size = 1.5) +      geom_vline(data = means_2000, aes(xintercept = mean_bench), size=1.5, color="red", size = 1.5) +
+    geom_vline(data = means_2000, aes(xintercept = mean_dead), size=1.5, color="green", size = 1.5) +
+  labs(title = "Squat, Bench, and Deadlift Records: 2000 - 2020", subtitle = "in Kilograms; 1kg = 2.2lbs") +
+  plotTheme(),
+ncol = 1)
+
+
+
+
+
+# SBD_Compare %>%
+#   filter(Value < 410) %>%
+#   ggplot() +
+#   stat_density(aes(colour = Variable, x=Value), fill = "transparent") +
+#   scale_colour_manual(values =c("purple", "lavender", "orange", "yellow", "forest green", "light green")) +
+#     geom_vline(data = means_2000, aes(xintercept = mean_squat), size=1.5, color="forest green", size = 1.5) +
+#     geom_vline(data = means_2000, aes(xintercept = mean_bench), size=1.5, color="purple", size = 1.5) +
+#     geom_vline(data = means_2000, aes(xintercept = mean_dead), size=1.5, color="orange", size = 1.5) +
+#     geom_vline(data = means_1964, aes(xintercept = mean_squat), size=1.5, color="light green", size = 1.5) +
+#     geom_vline(data = means_1964, aes(xintercept = mean_bench), size=1.5, color="lavender", size = 1.5) +
+#     geom_vline(data = means_1964, aes(xintercept = mean_dead), size=1.5, color="yellow", size = 1.5) +
+#   labs(title = "Squat, Bench, and Deadlift Records: 2000 - 2020", subtitle = "in Kilograms; 1kg = 2.2lbs; Outliers Omitted") +
+#   plotTheme() 
+
+
+```
+
+
+```{r Exploring weight, sex and strength, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
 Wilks.Summary <- PL %>%
   filter(AgeClass == "24-34") %>%
   dplyr::select(Weight.cat, AgeClass, Best3SquatKg, Best3BenchKg, Best3DeadliftKg, TotalKg, Wilks, Sex) %>%
@@ -170,7 +279,7 @@ Wilks.Summary %>%
 
 ```
 
-```{r drugs}
+```{r drugs, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
 PED.Summary <- PL %>%
   dplyr::select(Weight.cat, AgeClass, Best3SquatKg, Best3BenchKg, Best3DeadliftKg, TotalKg, Wilks, Sex, Tested) %>%
     group_by(Tested, Weight.cat) %>%
