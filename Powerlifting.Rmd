@@ -27,9 +27,8 @@ library(mapview)
 library(lubridate)
 library(grid)
 library(gridExtra)
-library(RJSONIO)
 library(ggmap)
-library(jsonlite)
+library(basemaps)
 
 
 root.dir = "https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/DATA/"
@@ -138,60 +137,30 @@ SBD_Compare <-
 
 #TEST GEOCODE
 
-PL_Sample <- PL[sample(nrow(PL), 10), ] 
+PL_Sample <- PL[sample(nrow(PL), 20), ] %>%
+  drop_na(MeetTown) %>%
+  select(MeetTown)
 
-nrow <- nrow(PL_Sample)
-counter <- 1
-PL_Sample$lon[counter] <- 0
-PL_Sample$lat[counter] <- 0
-while (counter <= nrow){
-  CityName <- gsub(' ','%20',PL_Sample$MeetTown[counter]) #remove space for URLs
-  CountryCode <- PL_Sample$MeetCountry[counter]
-  url <- paste(
-    "http://nominatim.openstreetmap.org/search?city="
-    , CityName
-    , "&countrycodes="
-    , CountryCode
-    , "&limit=9&format=json"
-    , sep="")
-  x <- fromJSON(url)
-  if(is.vector(x)){
-    PL_Sample$lon[counter] <- x[[1]]$lon
-    PL_Sample$lat[counter] <- x[[1]]$lat    
-  }
-  counter <- counter + 1
+
+
+
+#google reg
+register_google(key = "AIzaSyD5b3w_Q-7axsr-QV2aA3B2UntNO-WptGs", write = TRUE)
+
+ 
+for(i in 1:nrow(PL_Sample))
+{
+  result <- ggmap::geocode(PL_Sample$MeetTown[i], output = "latlona", source = "google")
+  PL_Sample$lon[i] <- as.numeric(result[1])
+  PL_Sample$lat[i] <- as.numeric(result[2])
+  PL_Sample$geoAddress[i] <- as.character(result[3])
 }
 
+PL_Sample <- PL_Sample %>%
+  sf::st_as_sf(coords = c("lon", "lat"))
 
-
-
-
- #geocode
-
-nrow <- nrow(PL)
-counter <- 1
-PL$lon[counter] <- 0
-PL$lat[counter] <- 0
-while (counter <= nrow){
-  CityName <- gsub(' ','%20',PL$MeetTown[counter]) #remove space for URLs
-  CountryCode <- PL$MeetCountry[counter]
-  url <- paste(
-    "http://nominatim.openstreetmap.org/search?city="
-    , CityName
-    , "&countrycodes="
-    , CountryCode
-    , "&limit=9&format=json"
-    , sep="")
-  x <- fromJSON(url)
-  if(is.vector(x)){
-    test$lon[counter] <- x[[1]]$lon
-    test$lat[counter] <- x[[1]]$lat    
-  }
-  counter <- counter + 1
-}
-
-
-
+ggplot() +
+  geom_sf(data = PL_Sample, colour = "red")
 
 ```
 
