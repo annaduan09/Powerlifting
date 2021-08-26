@@ -147,7 +147,8 @@ SBD_Compare <-
   full_join(SBD_1964, SBD_2000)
 ```
 
-```{r explore, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+Below is a sample of what the data looks like. Powerlifting as a sport includes 3 lifts: the squat, deadlift, and bench press. One's "total" is the sum of the weight they lifted for each lift. Each row in this data represents one person
+```{r the data, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
 # data summary
   PL[sample(nrow(PL), 15), ] %>%
 kable() %>%
@@ -156,97 +157,8 @@ kable() %>%
            general = "Open Powerlifting Dataset")
 ```
 
-```{r geography of PL, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+Now the first question: are we stronger than we were in the early days of powerlifting? For this analysis, I define "early days" as 1964 to 1984, 1964 being the year of the first official powerlifting meet. For comparison, I use data from 2000-2020 as a proxy for powerlifting today. 
 
-#geocode
-PL_Test <- PL
-PL_Test$Location <- paste(PL_Test$MeetTown, PL_Test$MeetState)
-
-for(i in 1:nrow(PL_Test))
-{
-  result <- ggmap::geocode(PL_Test$Location[i], output = "latlona", source = "google")
-  PL_Test$lon[i] <- as.numeric(result[1])
-  PL_Test$lat[i] <- as.numeric(result[2])
- # PL_Sample$geoAddress[i] <- as.character(result[3])
-}
-
-
-PL_Sample <- PL_Sample %>% 
-    st_as_sf(coords = c("lon", "lat"), agr = "constant") %>%
-st_set_crs(4326) %>% st_transform(crs=2225)
-
---------
-  
-for(i in 1:nrow(PL))
-{
-  result <- ggmap::geocode(PL$MeetTown[i], output = "latlona", source = "google")
-  PL$lon[i] <- as.numeric(result[1])
-  PL$lat[i] <- as.numeric(result[2])
-  PL$geoAddress[i] <- as.character(result[3])
-}
-
-PL_test <- PL %>%
-  filter(lat < 49.3457868,
-         lat > 24.7433195,
-         lon < -66.9513812,
-         lon > -124.7844079) %>%
-  sf::st_as_sf(coords = c("lon", "lat"), agr = "constant") %>%
-st_set_crs(4326) %>% st_transform(crs=2225)
-
-
-ggplot() +
-  geom_sf(data = PL, colour = "red") +
-  mapTheme()
-```
-
-```{r exploring strength distributions, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
-
-grid.arrange(  
-  
-  ggplot(PL, aes(x=Wilks)) +
-  geom_histogram() +
-  labs(title = "Wilks") +
-  plotTheme(), 
-  
-  ggplot(PL, aes(x=BodyweightKg)) +
-  geom_histogram() +
-  labs(title = "Bodyweight") +
-  plotTheme(), 
-  
-  ggplot(PL, aes(x=Age)) +
-  geom_histogram() +
-  labs(title = "Age") +
-  plotTheme(), 
-  
-  ggplot(PL, aes(x=Deadlift)) +
-  geom_histogram() +
-  labs(title = "Deadlift") +
-  plotTheme(), 
-  
-  ggplot(PL, aes(x=Squat)) +
-  geom_histogram() +
-  labs(title = "Squat") +
-  plotTheme(),
-  
-  ggplot(PL, aes(x=Bench)) +
-  geom_histogram() +
-  labs(title = "Bench") +
-  plotTheme(),
-  
-  ncol=3)
-
-
-
-#all records
-SBD %>%
-  gather(Variable, Value) %>%
-  ggplot() +
-  stat_density(aes(x=Value, fill = Variable, alpha = 0.4)) +
-  stat_density(aes(x=Value, fill = Variable, alpha = 0.4)) +
-  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
-  plotTheme()
-```
- 
 Powerlifting averages have slightly decreased since the early days despite increases in sports science, equipment, and knowledge. What happened?
 ```{r exploring strength over time, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
 #calculate mean weights for each lift during each period
@@ -306,6 +218,83 @@ ncol = 1)
 
 
 ```
+
+```{r exploring strength distributions, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+
+grid.arrange(  
+  
+  ggplot(PL, aes(x=Wilks)) +
+  geom_histogram() +
+  labs(title = "Wilks") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=BodyweightKg)) +
+  geom_histogram() +
+  labs(title = "Bodyweight") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=Age)) +
+  geom_histogram() +
+  labs(title = "Age") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=Deadlift)) +
+  geom_histogram() +
+  labs(title = "Deadlift") +
+  plotTheme(), 
+  
+  ggplot(PL, aes(x=Squat)) +
+  geom_histogram() +
+  labs(title = "Squat") +
+  plotTheme(),
+  
+  ggplot(PL, aes(x=Bench)) +
+  geom_histogram() +
+  labs(title = "Bench") +
+  plotTheme(),
+  
+  ncol=3)
+
+
+
+#all records
+SBD %>%
+  gather(Variable, Value) %>%
+  ggplot() +
+  stat_density(aes(x=Value, fill = Variable, alpha = 0.4)) +
+  stat_density(aes(x=Value, fill = Variable, alpha = 0.4)) +
+  labs(title = "Squat, Bench, and Deadlift Records: 1964 - 2021", subtitle = "in Kilograms; 1kg = 2.2lbs") +
+  plotTheme()
+```
+
+```{r geography of PL, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
+
+#geocode
+PL_Test <- PL
+PL_Test$Location <- paste(PL_Test$MeetTown, PL_Test$MeetState)
+
+for(i in 1:nrow(PL_Test))
+{
+  result <- ggmap::geocode(PL_Test$Location[i], output = "latlona", source = "google")
+  PL_Test$lon[i] <- as.numeric(result[1])
+  PL_Test$lat[i] <- as.numeric(result[2])
+ # PL_Sample$geoAddress[i] <- as.character(result[3])
+}
+
+
+PL_Sample <- PL_Sample %>% 
+    st_as_sf(coords = c("lon", "lat"), agr = "constant") %>%
+st_set_crs(4326) %>% st_transform(crs=2225)
+
+ 
+
+
+ggplot() +
+  geom_sf(data = PL, colour = "red") +
+  mapTheme()
+```
+
+
 
 
 ```{r Exploring weight, sex and strength, cache=TRUE, message=FALSE, warning=FALSE, include=TRUE}
